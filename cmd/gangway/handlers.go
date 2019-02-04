@@ -82,10 +82,10 @@ func serveTemplate(tmplFile string, data interface{}, w http.ResponseWriter) {
 	}
 }
 
-func generateKubeConfig(tmplFile string, cfg *userInfo) clientcmdapi.Config {
+func generateKubeConfig(cfg *userInfo) clientcmdapi.Config {
 	// configure the cluster
 	caData := base64.StdEncoding.EncodeToString([]byte(cfg.ClusterCA))
-
+	trustedCaData := base64.StdEncoding.EncodeToString([]byte(cfg.TrustedCA))
 	// fill out kubeconfig structure
 	kcfg := clientcmdapi.Config{
 		Kind:           "Config",
@@ -117,11 +117,12 @@ func generateKubeConfig(tmplFile string, cfg *userInfo) clientcmdapi.Config {
 					AuthProvider: &clientcmdapi.AuthProviderConfig{
 						Name: "oidc",
 						Config: map[string]string{
-							"client-id":      cfg.ClientID,
-							"client-secret":  cfg.ClientID,
-							"id-token":       cfg.IDToken,
-							"idp-issuer-url": cfg.IssuerURL,
-							"refresh-token":  cfg.RefreshToken,
+							"client-id":                      cfg.ClientID,
+							"client-secret":                  cfg.ClientID,
+							"id-token":                       cfg.IDToken,
+							"idp-issuer-url":                 cfg.IssuerURL,
+							"idp-certificate-authority-data": trustedCaData,
+							"refresh-token":                  cfg.RefreshToken,
 						},
 					},
 				},
@@ -383,7 +384,7 @@ func commandlineHandler(w http.ResponseWriter, r *http.Request) {
 		HTTPPath:     cfg.HTTPPath,
 	}
 
-	generateKubeConfig("kubeconfig.tmpl", info)
+	generateKubeConfig(info)
 	serveTemplate("commandline.tmpl", info, w)
 }
 
