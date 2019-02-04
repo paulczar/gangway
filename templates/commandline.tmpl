@@ -67,6 +67,7 @@ kubectl config set-credentials {{ .Email }}  \
     --auth-provider-arg=idp-certificate-authority-data={{ .TrustedCA | base64enc }}
 kubectl config set-context {{ .ClusterName }} --cluster={{ .ClusterName }} --user={{ .Email }}
 kubectl config use-context {{ .ClusterName }}
+rm ca-{{ .ClusterName }}.pem
               </code>
             </pre>
         </div>
