@@ -53,6 +53,7 @@ type userInfo struct {
 	IssuerURL    string
 	APIServerURL string
 	ClusterCA    string
+	TrustedCA    string
 	HTTPPath     string
 }
 
@@ -70,9 +71,15 @@ func serveTemplate(tmplFile string, data interface{}, w http.ResponseWriter) {
 		return
 	}
 
-	tmpl := template.New(tmplFile)
-	tmpl, _ = tmpl.Parse(string(templateData))
-	tmpl.ExecuteTemplate(w, tmplFile, data)
+	tmpl := template.New(tmplFile).Funcs(FuncMap())
+	tmpl, err = tmpl.Parse(string(templateData))
+	if err != nil {
+		log.Errorf("Error parsing kubeconfig template: %s", err)
+	}
+	err = tmpl.ExecuteTemplate(w, tmplFile, data)
+	if err != nil {
+		log.Errorf("Error executing kubeconf template: %s", err)
+	}
 }
 
 func generateKubeConfig(tmplFile string, cfg *userInfo) clientcmdapi.Config {
@@ -271,14 +278,30 @@ func commandlineHandler(w http.ResponseWriter, r *http.Request) {
 	// read in public ca.crt to output in commandline copy/paste commands
 	file, err := os.Open(cfg.ClusterCAPath)
 	if err != nil {
-		// let us know that we couldn't open the file. This only cause missing output
+		// let us know that we couldn't open the file. This only causes missing output
 		// does not impact actual function of program
 		log.Errorf("Failed to open CA file. %s", err)
 	}
 	defer file.Close()
 	caBytes, err := ioutil.ReadAll(file)
 	if err != nil {
+		// let us know that we couldn't open the file. This only causes missing output
+		// does not impact actual function of program
 		log.Warningf("Could not read CA file: %s", err)
+	}
+	// read in trusted ca cert to output in commandline copy/paste commands
+	file, err = os.Open(cfg.TrustedCAPath)
+	if err != nil {
+		// let us know that we couldn't open the file. This only causes missing output
+		// does not impact actual function of program
+		log.Errorf("Failed to open TrustedCA file. %s", err)
+	}
+	defer file.Close()
+	trustedCABytes, err := ioutil.ReadAll(file)
+	if err != nil {
+		// let us know that we couldn't open the file. This only causes missing output
+		// does not impact actual function of program
+		log.Warningf("Failed to read TrustedCA file. %s", err)
 	}
 
 	// load the session cookies
@@ -356,6 +379,7 @@ func commandlineHandler(w http.ResponseWriter, r *http.Request) {
 		IssuerURL:    issuerURL,
 		APIServerURL: cfg.APIServerURL,
 		ClusterCA:    string(caBytes),
+		TrustedCA:    string(trustedCABytes),
 		HTTPPath:     cfg.HTTPPath,
 	}
 
